@@ -1,7 +1,14 @@
 # merrdb
 一个简单、快速的Mysql数据库操作类库。
 
+### 安装
+
+```
+composer require mejinke/merrdb
+```
+
 ### 快速入门
+
 ```php
 require __DIR__.'/../vendor/autoload.php';
 
