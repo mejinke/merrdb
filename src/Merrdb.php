@@ -94,6 +94,21 @@ class Merrdb
         return $this;
     }
 
+
+    /**
+     *
+     * 设置连接分配委托
+     *
+     * @param \Closure $delegate
+     * @return $this
+     */
+    public function setDispatchConnDelegate(\Closure $delegate)
+    {
+        $this->dispatchConnDelegate = $delegate;
+        return $this;
+    }
+
+
     /**
      * 开启Debug
      * @return Merrdb
@@ -368,7 +383,7 @@ class Merrdb
         //优先使用用户委托的连接
         if (is_callable($this->dispatchConnDelegate))
         {
-            $id = $this->dispatchConnDelegate();
+            $id = call_user_func($this->dispatchConnDelegate);
         }
 
         if ($id != null)

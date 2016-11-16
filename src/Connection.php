@@ -38,7 +38,7 @@ class Connection
      *
      * @var array
      */
-    protected $allows;
+    protected $allows = [];
 
     /**
      *
@@ -115,6 +115,11 @@ class Connection
         $this->workCount = 0;
 
         $this->pdo = new \PDO($this->getDsn(), $this->username, $this->password, $this->options);
+
+        foreach ($commands as $cmd)
+        {
+            $this->pdo->exec($cmd);
+        }
 
         return $this;
     }
