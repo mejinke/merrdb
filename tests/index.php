@@ -1,10 +1,6 @@
-# merrdb
-一个简单、快速的Mysql数据库操作类库。
-
-### 快速入门
-```php
+<?php
 require __DIR__.'/../vendor/autoload.php';
-
+echo "<pre>";
 //创建一个连接
 $conn = new \Merrdb\Connection([
     'host' => 'localhost',
@@ -30,4 +26,3 @@ print_r($rows);
 $mdb->debug();
 //查询主键值为1的数据
 $row = $mdb->get(1);
-```

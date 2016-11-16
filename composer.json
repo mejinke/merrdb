@@ -1,0 +1,20 @@
+{
+  "name" : "metian/merrdb",
+  "type":"framework",
+  "description":"A pleasant mysql library",
+  "keywords":["database","php","mysql","SQL","db"],
+  "homepage":"https://github.com/mejinke/merrdb",
+  "license":"MIT",
+  "authors":[
+    {"name":"tianjingke", "email":"mejinke@gmail.com"}
+  ],
+  "require":{
+    "php" : ">=5.4",
+    "ext-pdo":"*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Merrdb\\":"src/"
+    }
+  }
+}
