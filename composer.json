@@ -1,5 +1,5 @@
 {
-  "name" : "metian/merrdb",
+  "name" : "mejinke/merrdb",
   "type":"framework",
   "description":"A pleasant mysql library",
   "keywords":["database","php","mysql","SQL","db"],
