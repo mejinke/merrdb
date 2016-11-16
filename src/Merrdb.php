@@ -7,6 +7,7 @@ class Merrdb
     const QUERY_TYPE_INSERT = 2;
     const QUERY_TYPE_UPDATE = 3;
     const QUERY_TYPE_DELETE = 4;
+
     /**
      * Connection
      * @var \Merrdb\Connection[]
@@ -124,7 +125,8 @@ class Merrdb
     /**
      * 执行SQL
      * @param $query
-     * @return \PDOStatement
+     * @param bool $fetchAll
+     * @return bool
      */
     public function query($query, $fetchAll = true)
     {
@@ -138,7 +140,7 @@ class Merrdb
     /**
      * 格式化Query结果
      * @param \PDOStatement $result
-     * @param  bool $isetchAll
+     * @param  bool $fetchAll
      * @return bool
      */
     protected function queryResultFormat($result, $fetchAll = true)
@@ -168,30 +170,34 @@ class Merrdb
     /**
      * 获取主键记录
      * @param $id
-     * @param string $column
-     * @return \PDOStatement
+     * @param string $columns
+     * @return array|false
      */
-    public function get($id, $colums = '*')
+    public function get($id, $columns = '*')
     {
-        return $row = $this->query($this->getNormalSQL($colums, [$this->id => $id]), false);
+        return $this->query($this->getNormalSQL($columns, [$this->id => $id]), false);
     }
 
     /**
-     * 查询一行
-
+     * 获取一条记录
+     * @param array $conditions
+     * @param string $columns
+     * @return array|false
      */
-    public function fetch(array $conditions, $colums = '*')
+    public function fetch(array $conditions, $columns = '*')
     {
-        return $row = $this->query($this->getNormalSQL($colums, $conditions), false);
+        return $this->query($this->getNormalSQL($columns, $conditions), false);
     }
 
     /**
      * 查询多行
-
+     * @param array $conditions
+     * @param string $columns
+     * @return array|false
      */
-    public function select(array $conditions = [], $colums = '*')
+    public function select(array $conditions = [], $columns = '*')
     {
-        return $row = $this->query($this->getNormalSQL($colums, $conditions));
+        return $row = $this->query($this->getNormalSQL($columns, $conditions));
     }
 
     /**
@@ -252,37 +258,68 @@ class Merrdb
 
     /**
      * 获取完整的SQL
-     * @param $colums
+     * @param $columns
      * @param array $conditions
      * @param int $type
      * @return string
      */
-    protected function getNormalSQL($colums, array $conditions, $type = Merrdb::QUERY_TYPE_SELECT)
+    protected function getNormalSQL($columns, array $conditions, $type = Merrdb::QUERY_TYPE_SELECT)
     {
         switch ($type)
         {
             case Merrdb::QUERY_TYPE_SELECT:
-                return "SELECT {$colums} FROM `{$this->table}` WHERE {$this->conditionParse($conditions)}";
+                return "SELECT {$columns} FROM `{$this->table}` WHERE {$this->parseCondition($conditions)}";
             case Merrdb::QUERY_TYPE_INSERT:
-                return "INSERT INTO `{$this->table}` SET {$this->getInsertUpdateKvData($colums)}";
+                return "INSERT INTO `{$this->table}` SET {$this->getInsertUpdateKvData($columns)}";
             case Merrdb::QUERY_TYPE_UPDATE:
-                return "UPDATE `{$this->table}` SET {$this->getInsertUpdateKvData($colums)} WHERE {$this->conditionParse($conditions)}";
+                return "UPDATE `{$this->table}` SET {$this->getInsertUpdateKvData($columns)} WHERE {$this->parseCondition($conditions)}";
             case Merrdb::QUERY_TYPE_DELETE:
-                return "DELETE FROM `{$this->table}` WHERE {$this->conditionParse($conditions)}";
+                return "DELETE FROM `{$this->table}` WHERE {$this->parseCondition($conditions)}";
         }
 
         return '';
     }
 
-    protected function getInsertUpdateKvData(array $colums)
+    /**
+     * 获取插入和更新的SQL格式内容
+     * @param array $columns
+     * @return string
+     */
+    protected function getInsertUpdateKvData(array $columns)
     {
         $n = [];
-        foreach ($colums as $colum => $val)
+        foreach ($columns as $column => $val)
         {
-            $n[] = "`{$colum}` = '{$val}'";
+            $n[] = "`{$column}` = {$this->quote($val)}";
         }
 
         return implode(',', $n);
+    }
+
+    /**
+     * Quote
+     * @param $string
+     * @return string
+     */
+    protected function quote($string)
+    {
+        return $this->dispatchConnection()->connect()->quote($string);
+    }
+
+    /**
+     * Quote array
+     * @param array $values
+     * @return array
+     */
+    protected function quoteArray(array $values)
+    {
+        $n = [];
+        foreach ($values as $v)
+        {
+            $n[] = $this->quote($v);
+        }
+
+        return $n;
     }
 
     /**
@@ -290,7 +327,7 @@ class Merrdb
      * @param array $conditions
      * @return string
      */
-    public function conditionParse(array $conditions)
+    public function parseCondition(array $conditions)
     {
 
         if (empty($conditions))
@@ -368,7 +405,7 @@ class Merrdb
                 $ct = '=';
                 if (is_array($values))
                 {
-                    $ct = "IN('%s')";
+                    $ct = "IN(%s)";
                 }
                 break;
             case '>':
@@ -381,7 +418,7 @@ class Merrdb
                 $ct = '!=';
                 if (is_array($values))
                 {
-                    $ct = "NOT IN('%s')";
+                    $ct = "NOT IN(%s)";
                 }
                 break;
             case '<>':
@@ -402,6 +439,8 @@ class Merrdb
 
         if (is_array($values))
         {
+            $values = $this->quoteArray($values);
+
             if (in_array($split[1], ['<>', '><']))
             {
                 $str = sprintf($str, $values[0], isset($values[1]) ? $values[1] : $values[0]);
@@ -409,23 +448,23 @@ class Merrdb
 
             if (in_array($split[1], ['=', '!']))
             {
-                $str = sprintf($str, implode("','", $values));
+                $str = sprintf($str, implode(",", $values));
             }
         }
         else
         {
             if (in_array($split[1], ['<>', '><']))
             {
-                $str = sprintf($str, $values, $values);
+                $str = sprintf($str, $this->quote($values), $this->quote($values));
             }
 
             elseif (in_array($split[1], ['=', '!']))
             {
-                $str .= "'{$values}'";
+                $str .= "{$this->quote($values)}";
             }
             else
             {
-                $str .= "'{$values}'";
+                $str .= "{$this->quote($values)}";
             }
         }
 

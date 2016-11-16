@@ -180,6 +180,18 @@ class Connection
         $this->pdo->commit();
     }
 
+    /**
+     *
+     * Quote
+     *
+     * @param $string
+     * @return string
+     */
+    public function quote($string)
+    {
+        return $this->pdo->quote($string);
+    }
+
     public function error()
     {
         return $this->pdo->errorInfo();
