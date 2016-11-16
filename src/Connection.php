@@ -2,9 +2,7 @@
 namespace Merrdb;
 
 /**
- *
  * 数据连接驱动类
- *
  * @author mejinke
  * @package Merrdb
  */
@@ -33,17 +31,13 @@ class Connection
     protected $options;
 
     /**
-     *
      * Allow tables
-     *
      * @var array
      */
     protected $allows = [];
 
     /**
-     *
      * Pdo
-     *
      * @var \PDO
      */
     protected $pdo;
@@ -66,9 +60,7 @@ class Connection
     }
 
     /**
-     *
      * 获取id
-     *
      * @return string
      */
     public function getId()
@@ -78,13 +70,11 @@ class Connection
 
     public function getSource()
     {
-       return $this->socket ?: $this->host;
+        return $this->socket ?: $this->host;
     }
 
     /**
-     *
      * 获取执行次数
-     *
      * @return int
      */
     public function getWorkCount()
@@ -93,9 +83,7 @@ class Connection
     }
 
     /**
-     *
      * 连接数据库
-     *
      * @return $this
      */
     public function connect()
@@ -125,25 +113,21 @@ class Connection
     }
 
     /**
-     *
      * 获取DSN
-     *
      * @return string
      */
     private function getDsn()
     {
         if ($this->socket != null)
         {
-            return 'mysql:unix_socket='.$this->socket.';dbname='.$this->database;
+            return 'mysql:unix_socket=' . $this->socket . ';dbname=' . $this->database;
         }
 
-        return 'mysql:host='.$this->host.';port='.($this->port ?: 3306).';dbname='.$this->database;
+        return 'mysql:host=' . $this->host . ';port=' . ($this->port ?: 3306) . ';dbname=' . $this->database;
     }
 
     /**
-     *
      * 是否允许指定表操作
-     *
      * @param $table
      * @return bool
      */
@@ -153,9 +137,7 @@ class Connection
     }
 
     /**
-     *
      * 执行SQL
-     *
      * @param $query
      * @return \PDOStatement
      */
@@ -165,9 +147,7 @@ class Connection
     }
 
     /**
-     *
      * 执行SQL
-     *
      * @param $query
      * @return int
      */
@@ -177,18 +157,27 @@ class Connection
     }
 
     /**
-     *
-     * 执行事务
-     *
-     * @param \Closure $action
-     * @return bool
+     * 开始事务
      */
-    public function action(\Closure $action)
+    public function actionBegin()
     {
-
         $this->pdo->beginTransaction();
+    }
 
-        $r = $action($this);
+    /**
+     * 事务回滚
+     */
+    public function actionRollback()
+    {
+        $this->pdo->rollBack();
+    }
+
+    /**
+     * 提交事件
+     */
+    public function actionCommit()
+    {
+        $this->pdo->commit();
     }
 
     public function error()

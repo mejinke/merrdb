@@ -3,6 +3,10 @@ namespace Merrdb;
 
 class Merrdb
 {
+    const QUERY_TYPE_SELECT = 1;
+    const QUERY_TYPE_INSERT = 2;
+    const QUERY_TYPE_UPDATE = 3;
+    const QUERY_TYPE_DELETE = 4;
     /**
      * Connection
      * @var \Merrdb\Connection[]
@@ -94,20 +98,17 @@ class Merrdb
         return $this;
     }
 
-
     /**
-     *
      * 设置连接分配委托
-     *
      * @param \Closure $delegate
      * @return $this
      */
     public function setDispatchConnDelegate(\Closure $delegate)
     {
         $this->dispatchConnDelegate = $delegate;
+
         return $this;
     }
-
 
     /**
      * 开启Debug
@@ -121,9 +122,7 @@ class Merrdb
     }
 
     /**
-     *
      * 执行SQL
-     *
      * @param $query
      * @return \PDOStatement
      */
@@ -133,18 +132,16 @@ class Merrdb
 
         $this->saveQueryLog($query);
 
-        return $this->queryFormat($conn->query($query), $fetchAll);
+        return $this->queryResultFormat($conn->query($query), $fetchAll);
     }
 
     /**
-     *
      * 格式化Query结果
-     *
      * @param \PDOStatement $result
      * @param  bool $isetchAll
      * @return bool
      */
-    protected function queryFormat($result, $fetchAll = true)
+    protected function queryResultFormat($result, $fetchAll = true)
     {
         if ($result == false)
         {
@@ -154,11 +151,8 @@ class Merrdb
         return $fetchAll ? $result->fetchAll() : $result->fetch();
     }
 
-
     /**
-     *
      * 执行SQL
-     *
      * @param $query
      * @return int
      */
@@ -172,9 +166,7 @@ class Merrdb
     }
 
     /**
-     *
      * 获取主键记录
-     *
      * @param $id
      * @param string $column
      * @return \PDOStatement
@@ -184,11 +176,9 @@ class Merrdb
         return $row = $this->query($this->getNormalSQL($colums, [$this->id => $id]), false);
     }
 
-
     /**
-     *
      * 查询一行
-     *
+
      */
     public function fetch(array $conditions, $colums = '*')
     {
@@ -196,9 +186,8 @@ class Merrdb
     }
 
     /**
-     *
      * 查询多行
-     *
+
      */
     public function select(array $conditions = [], $colums = '*')
     {
@@ -206,22 +195,98 @@ class Merrdb
     }
 
     /**
-     *
-     * 获取完整的SQL
-     *
-     * @param $column
-     * @param array $conditions
-     * @return string
+     * 插入数据
+     * @param array $data
+     * @return int
      */
-    protected function getNormalSQL($colums, array $conditions)
+    public function insert(array $data)
     {
-        return "SELECT {$colums} FROM `{$this->table}` WHERE {$this->conditionParse($conditions)}";
+        return $this->exec($this->getNormalSQL($data, null, Merrdb::QUERY_TYPE_INSERT));
     }
 
     /**
-     *
+     * 更新数据
+     * @param array $data
+     * @param array $conditions
+     * @return int
+     */
+    public function update(array $data, array $conditions)
+    {
+        return $this->exec($this->getNormalSQL($data, $conditions, Merrdb::QUERY_TYPE_UPDATE));
+    }
+
+    /**
+     * 删除数据
+     * @param array $conditions
+     * @return int
+     */
+    public function delete(array $conditions)
+    {
+        return $this->exec($this->getNormalSQL(null, $conditions, Merrdb::QUERY_TYPE_DELETE));
+    }
+
+    /**
+     * 执行事务
+     * @param \Closure $action
+     * @return bool
+     */
+    public function action(\Closure $action)
+    {
+        $conn = $this->dispatchConnection()->connect();
+
+        $conn->actionBegin();
+
+        $result = $action($this);
+
+        if ($result === false)
+        {
+            $conn->actionRollback();
+
+            return false;
+        }
+
+        $conn->actionCommit();
+
+        return $result;
+    }
+
+    /**
+     * 获取完整的SQL
+     * @param $colums
+     * @param array $conditions
+     * @param int $type
+     * @return string
+     */
+    protected function getNormalSQL($colums, array $conditions, $type = Merrdb::QUERY_TYPE_SELECT)
+    {
+        switch ($type)
+        {
+            case Merrdb::QUERY_TYPE_SELECT:
+                return "SELECT {$colums} FROM `{$this->table}` WHERE {$this->conditionParse($conditions)}";
+            case Merrdb::QUERY_TYPE_INSERT:
+                return "INSERT INTO `{$this->table}` SET {$this->getInsertUpdateKvData($colums)}";
+            case Merrdb::QUERY_TYPE_UPDATE:
+                return "UPDATE `{$this->table}` SET {$this->getInsertUpdateKvData($colums)} WHERE {$this->conditionParse($conditions)}";
+            case Merrdb::QUERY_TYPE_DELETE:
+                return "DELETE FROM `{$this->table}` WHERE {$this->conditionParse($conditions)}";
+        }
+
+        return '';
+    }
+
+    protected function getInsertUpdateKvData(array $colums)
+    {
+        $n = [];
+        foreach ($colums as $colum => $val)
+        {
+            $n[] = "`{$colum}` = '{$val}'";
+        }
+
+        return implode(',', $n);
+    }
+
+    /**
      * 条件解析
-     *
      * @param array $conditions
      * @return string
      */
@@ -257,10 +322,10 @@ class Merrdb
 
         foreach ($conditionReal as $key => $conds)
         {
-           foreach ($conds as $expression => $value)
-           {
-               $vals[$key][] = $this->parseExpression($expression, $value);
-           }
+            foreach ($conds as $expression => $value)
+            {
+                $vals[$key][] = $this->parseExpression($expression, $value);
+            }
         }
 
         $query = '';
@@ -280,9 +345,7 @@ class Merrdb
     }
 
     /**
-     *
      * 表达式解析
-     *
      * @param $expression
      * @param $values
      * @return string
@@ -370,9 +433,7 @@ class Merrdb
     }
 
     /**
-     *
      * 分配连接
-     *
      * @return Connection|null
      * @throws \Exception
      */
@@ -424,9 +485,7 @@ class Merrdb
     }
 
     /**
-     *
      * 保存Query日志
-     *
      * @param $query
      */
     protected function saveQueryLog($query)
@@ -435,7 +494,7 @@ class Merrdb
 
         if ($this->debug == true)
         {
-            echo $query."\n";
+            echo $query . "\n";
             $this->debug = false;
         }
 
@@ -443,23 +502,19 @@ class Merrdb
     }
 
     /**
-     *
      * 获取最后一条SQL
-     *
      * @return string
      */
-    public function getLastQuery()
+    public function getLastLog()
     {
         return end($this->logs);
     }
 
     /**
-     *
      * 获取所有的SQL
-     *
      * @return array
      */
-    public function getQuerys()
+    public function getLogs()
     {
         return $this->logs;
     }
