@@ -290,7 +290,7 @@ class Merrdb
         $n = [];
         foreach ($columns as $column => $val)
         {
-            $n[] = "`{$column}` = {$this->quote($val)}";
+            $n[] = "{$this->quoteColumn($column)} = {$this->quote($val)}";
         }
 
         return implode(',', $n);
@@ -304,6 +304,16 @@ class Merrdb
     protected function quote($string)
     {
         return $this->dispatchConnection()->connect()->quote($string);
+    }
+
+    /**
+     * Quote column
+     * @param $string
+     * @return string
+     */
+    protected function quoteColumn($string)
+    {
+        return '`' . str_replace(['"', "'"], '', $string) . '`';
     }
 
     /**
@@ -349,33 +359,92 @@ class Merrdb
                     }
                     break;
                 case 'ORDER':
+                    $conditionReal['ORDER'] = $condition;
+                    break;
+                case 'GROUP':
+                    break;
                 case 'LIMIT':
+                    $conditionReal['LIMIT'] = is_array($condition) ? $condition : [intval($condition), intval($condition)];
+                    break;
                 default:
                     $conditionReal['AND'][$expression] = $condition;
             }
         }
 
-        $vals = [];
+        $ws = ['AND' => [], 'OR' => [], 'ORDER' => [], 'GROUP' => [], 'LIMIT' => []];
 
         foreach ($conditionReal as $key => $conds)
         {
-            foreach ($conds as $expression => $value)
+            switch ($key)
             {
-                $vals[$key][] = $this->parseExpression($expression, $value);
+                case 'AND':
+                case 'OR':
+                    foreach ($conds as $expression => $value)
+                    {
+                        $ws[$key][] = $this->parseExpression($expression, $value);
+                    }
+                    break;
+                case 'ORDER':
+                    if (is_array($conds))
+                    {
+                        foreach ($conds as $column => $v)
+                        {
+                            $ws[$key][] = "{$this->quoteColumn($column)} $v";
+                        }
+                    }
+                    else
+                    {
+                        $ws[$key][] = "{$conds}";
+                    }
+                    break;
+                case 'GROUP':
+                    break;
+                case 'LIMIT':
+                    $ws[$key] = $conds;
+                    break;
             }
         }
 
         $query = '';
-        $i = 0;
-        foreach ($vals as $key => $s)
+
+        foreach ($ws as $key => $stack)
         {
-            $i++;
-            $format = '(%s)';
-            if (count($vals) > $i)
+            if (empty($stack))
             {
-                $format = " (%s) AND ";
+                continue;
             }
-            $query .= sprintf($format, implode(" {$key} ", $s));
+
+            $w = '';
+
+            switch ($key)
+            {
+                case 'AND':
+                case 'OR':
+                    if (!empty($query))
+                    {
+                        $query .= " {$key} ";
+                    }
+
+                    foreach ($stack as $i => $s)
+                    {
+                        $format = '%s';
+                        if (count($stack) > $i + 1)
+                        {
+                            $format = " %s AND ";
+                        }
+                        $w .= sprintf($format, $s);
+                    }
+                    $w = "($w)";
+                    break;
+                case 'ORDER':
+                    $w = " ORDER BY " . implode(',', $stack);
+                    break;
+                case 'LIMIT':
+                    $w = " LIMIT {$stack[0]},{$stack[1]}";
+                    break;
+
+            }
+            $query .= $w;
         }
 
         return $query;
@@ -435,7 +504,7 @@ class Merrdb
             throw new \Exception("'{$expression}' cannot parse");
         }
 
-        $str = "`{$split[0]}` {$ct} ";
+        $str = "{$this->quoteColumn($split[0])} {$ct} ";
 
         if (is_array($values))
         {
