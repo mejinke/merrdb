@@ -56,8 +56,6 @@ class Merrdb
      */
     public function __construct(array $connections = [])
     {
-        $this->connections = (array)$connections;
-
         if (empty($connections) == false)
         {
             foreach ($connections as $conn)
