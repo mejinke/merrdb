@@ -266,13 +266,13 @@ class Merrdb
         switch ($type)
         {
             case Merrdb::QUERY_TYPE_SELECT:
-                return "SELECT {$columns} FROM `{$this->table}` WHERE {$this->parseCondition($conditions)}";
+                return "SELECT {$columns} FROM `{$this->table}` {$this->parseCondition($conditions)}";
             case Merrdb::QUERY_TYPE_INSERT:
                 return "INSERT INTO `{$this->table}` SET {$this->getInsertUpdateKvData($columns)}";
             case Merrdb::QUERY_TYPE_UPDATE:
-                return "UPDATE `{$this->table}` SET {$this->getInsertUpdateKvData($columns)} WHERE {$this->parseCondition($conditions)}";
+                return "UPDATE `{$this->table}` SET {$this->getInsertUpdateKvData($columns)} {$this->parseCondition($conditions)}";
             case Merrdb::QUERY_TYPE_DELETE:
-                return "DELETE FROM `{$this->table}` WHERE {$this->parseCondition($conditions)}";
+                return "DELETE FROM `{$this->table}` {$this->parseCondition($conditions)}";
         }
 
         return '';
@@ -403,7 +403,10 @@ class Merrdb
             }
         }
 
-        $query = '1';
+        $query = '';
+
+        //是否存在条件
+        $existsCondition = false;
 
         foreach ($ws as $key => $stack)
         {
@@ -418,11 +421,11 @@ class Merrdb
             {
                 case 'AND':
                 case 'OR':
+                    $existsCondition = true;
                     if (!empty($query))
                     {
                         $query .= " {$key} ";
                     }
-
                     foreach ($stack as $i => $s)
                     {
                         $format = '%s';
@@ -445,7 +448,7 @@ class Merrdb
             $query .= $w;
         }
 
-        return $query;
+        return $existsCondition ? "WHERE {$query}" : $query;
     }
 
     /**
