@@ -422,20 +422,11 @@ class Merrdb
                 case 'AND':
                 case 'OR':
                     $existsCondition = true;
-                    if (!empty($query))
+                    $w = '('.implode(" {$key} ", $stack).')';
+                    if ($query != '')
                     {
-                        $query .= " {$key} ";
+                        $w = ' AND '.$w;
                     }
-                    foreach ($stack as $i => $s)
-                    {
-                        $format = '%s';
-                        if (count($stack) > $i + 1)
-                        {
-                            $format = " %s AND ";
-                        }
-                        $w .= sprintf($format, $s);
-                    }
-                    $w = "($w)";
                     break;
                 case 'ORDER':
                     $w = " ORDER BY " . implode(',', $stack);
