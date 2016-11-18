@@ -362,7 +362,7 @@ class Merrdb
 
         if (empty($conditions))
         {
-            return '1';
+            return '';
         }
 
         $conditionReal = [];
