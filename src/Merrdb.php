@@ -403,7 +403,7 @@ class Merrdb
             }
         }
 
-        $query = '';
+        $query = '1';
 
         foreach ($ws as $key => $stack)
         {
