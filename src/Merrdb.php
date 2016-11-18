@@ -199,6 +199,28 @@ class Merrdb
     }
 
     /**
+     * 是否存在数据
+     * @param array $conditions
+     * @return bool
+     */
+    public function has(array $conditions)
+    {
+        return $this->count($conditions) > 0;
+    }
+
+    /**
+     * 查询总行数
+     * @param array $conditions
+     * @return int|mixed
+     */
+    public function count(array $conditions)
+    {
+        $row = $this->fetch($conditions, 'COUNT(*) AS RowsNum');
+
+        return $row == false ? 0 : intval($row['RowsNum']);
+    }
+
+    /**
      * 插入数据
      * @param array $data
      * @return int
@@ -422,10 +444,10 @@ class Merrdb
                 case 'AND':
                 case 'OR':
                     $existsCondition = true;
-                    $w = '('.implode(" {$key} ", $stack).')';
+                    $w = '(' . implode(" {$key} ", $stack) . ')';
                     if ($query != '')
                     {
-                        $w = ' AND '.$w;
+                        $w = ' AND ' . $w;
                     }
                     break;
                 case 'ORDER':
