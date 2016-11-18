@@ -335,7 +335,7 @@ class Merrdb
      * @param array $conditions
      * @return string
      */
-    public function parseCondition(arragit y $conditions)
+    public function parseCondition(array $conditions)
     {
 
         if (empty($conditions))
