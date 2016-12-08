@@ -490,6 +490,10 @@ class Merrdb
                 {
                     $ct = "IN(%s)";
                 }
+                elseif (is_null($values))
+                {
+                    $ct = "IS";
+                }
                 break;
             case '>':
             case '>=':
@@ -502,6 +506,10 @@ class Merrdb
                 if (is_array($values))
                 {
                     $ct = "NOT IN(%s)";
+                }
+                elseif (is_null($values))
+                {
+                    $ct = "IS NOT";
                 }
                 break;
             case '<>':

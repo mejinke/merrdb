@@ -189,6 +189,10 @@ class Connection
      */
     public function quote($string)
     {
+        if ($string === null)
+        {
+            return 'NULL';
+        }
         return $this->pdo->quote($string);
     }
 
