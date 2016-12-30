@@ -283,7 +283,7 @@ class Merrdb
      * @param int $type
      * @return string
      */
-    protected function getNormalSQL($columns, array $conditions, $type = Merrdb::QUERY_TYPE_SELECT)
+    protected function getNormalSQL($columns, array $conditions = null, $type = Merrdb::QUERY_TYPE_SELECT)
     {
         switch ($type)
         {
