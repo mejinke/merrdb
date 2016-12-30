@@ -382,6 +382,7 @@ class Merrdb
                     $conditionReal['ORDER'] = $condition;
                     break;
                 case 'GROUP':
+                    $conditionReal['GROUP'] = $condition;
                     break;
                 case 'LIMIT':
                     $conditionReal['LIMIT'] = is_array($condition) ? $condition : [intval($condition), intval($condition)];
@@ -418,6 +419,17 @@ class Merrdb
                     }
                     break;
                 case 'GROUP':
+                    if (is_array($conds))
+                    {
+                        foreach ($conds as $column)
+                        {
+                            $ws[$key][] = "{$this->quoteColumn($column)}";
+                        }
+                    }
+                    else
+                    {
+                        $ws[$key][] = "{$conds}";
+                    }
                     break;
                 case 'LIMIT':
                     $ws[$key] = $conds;
@@ -429,7 +441,7 @@ class Merrdb
 
         //是否存在条件
         $existsCondition = false;
-
+        $existsOrderby = false;
         foreach ($ws as $key => $stack)
         {
             if (empty($stack))
@@ -452,12 +464,21 @@ class Merrdb
                     break;
                 case 'ORDER':
                     $w = " ORDER BY " . implode(',', $stack);
+                    $existsOrderby = true;
+                    break;
+                case 'GROUP':
+                    $w = " GROUP BY ".implode(',', $stack);
                     break;
                 case 'LIMIT':
                     $w = " LIMIT {$stack[0]},{$stack[1]}";
                     break;
-
             }
+
+            if ($key == 'GROUP' && $existsOrderby == true) 
+            {
+                continue;
+            }
+            
             $query .= $w;
         }
 
