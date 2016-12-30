@@ -215,7 +215,16 @@ class Merrdb
      */
     public function count(array $conditions)
     {
-        $row = $this->fetch($conditions, 'COUNT(*) AS RowsNum');
+        $row = false;
+
+        if (isset($conditions['GROUP']))
+        {
+            $row = $this->query(sprintf("SELECT COUNT(*) AS RowsNum FROM (%s) as nt", $this->getNormalSQL('*', $conditions)));
+        }
+        else
+        {
+            $row = $this->fetch($conditions, 'COUNT(*) AS RowsNum');
+        }
 
         return $row == false ? 0 : intval($row['RowsNum']);
     }
