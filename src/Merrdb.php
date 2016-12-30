@@ -219,7 +219,7 @@ class Merrdb
 
         if (isset($conditions['GROUP']))
         {
-            $row = $this->query(sprintf("SELECT COUNT(*) AS RowsNum FROM (%s) as nt", $this->getNormalSQL('*', $conditions)));
+            $row = $this->query(sprintf("SELECT COUNT(*) AS RowsNum FROM (%s) as nt", $this->getNormalSQL('*', $conditions)), false);
         }
         else
         {
