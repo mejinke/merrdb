@@ -543,10 +543,10 @@ class Merrdb
                 }
                 break;
             case '<>':
-                $ct = "BETWEEN '%s' AND '%s'";
+                $ct = "BETWEEN %s AND %s";
                 break;
             case '><':
-                $ct = "NOT BETWEEN '%s' AND '%s'";
+                $ct = "NOT BETWEEN %s AND %s";
                 break;
 
         }
