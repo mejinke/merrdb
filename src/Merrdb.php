@@ -236,7 +236,13 @@ class Merrdb
      */
     public function insert(array $data)
     {
-        return $this->exec($this->getNormalSQL($data, null, Merrdb::QUERY_TYPE_INSERT));
+        $r = $this->exec($this->getNormalSQL($data, null, Merrdb::QUERY_TYPE_INSERT));
+        if ($r == 0)
+        {
+            return $r;
+        }
+
+        return $this->dispatchConnection()->connect()->lastInsertId();
     }
 
     /**
@@ -548,7 +554,9 @@ class Merrdb
             case '><':
                 $ct = "NOT BETWEEN %s AND %s";
                 break;
-
+            case '~':
+                $ct = "LIKE ";
+                break;
         }
 
         if ($ct == '')
@@ -567,9 +575,13 @@ class Merrdb
                 $str = sprintf($str, $values[0], isset($values[1]) ? $values[1] : $values[0]);
             }
 
-            if (in_array($split[1], ['=', '!']))
+            elseif (in_array($split[1], ['=', '!']))
             {
                 $str = sprintf($str, implode(",", $values));
+            }
+            elseif($split[1] == '~')
+            {
+
             }
         }
         else
@@ -581,6 +593,11 @@ class Merrdb
 
             elseif (in_array($split[1], ['=', '!']))
             {
+                $str .= "{$this->quote($values)}";
+            }
+            elseif($split[1] == '~')
+            {
+                $values = "%{$values}%";
                 $str .= "{$this->quote($values)}";
             }
             else

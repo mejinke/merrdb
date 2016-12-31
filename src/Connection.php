@@ -157,6 +157,15 @@ class Connection
     }
 
     /**
+     * 获取新增的ID
+     * @return string
+     */
+    public function lastInsertId()
+    {
+        return $this->pdo->lastInsertId();
+    }
+    
+    /**
      * 开始事务
      */
     public function actionBegin()
