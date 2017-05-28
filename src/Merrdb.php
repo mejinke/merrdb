@@ -325,6 +325,10 @@ class Merrdb
         $n = [];
         foreach ($columns as $column => $val)
         {
+            if(is_array($val))
+            {
+                $val = implode(',', $val);
+            }
             $n[] = "{$this->quoteColumn($column)} = {$this->quote($val)}";
         }
 
