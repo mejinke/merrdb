@@ -51,7 +51,16 @@ class Merrdb
     private $dispatchConnDelegate;
 
     /**
+     *
+     * 错误信息
+     *
+     * @var
+     */
+    private $error;
+
+    /**
      * Merrdb constructor.
+     *
      * @param \Merrdb\Connection[] $connections
      */
     public function __construct(array $connections = [])
@@ -67,7 +76,9 @@ class Merrdb
 
     /**
      * Getter|Setter
+     *
      * @param null $table
+     *
      * @return Merrdb|string|null
      */
     public function table($table = null)
@@ -83,7 +94,9 @@ class Merrdb
 
     /**
      * Getter|Setter
+     *
      * @param $id
+     *
      * @return Merrdb|string|null
      */
     public function id($id = null)
@@ -99,7 +112,9 @@ class Merrdb
 
     /**
      * 设置连接分配委托
+     *
      * @param \Closure $delegate
+     *
      * @return $this
      */
     public function setDispatchConnDelegate(\Closure $delegate)
@@ -122,23 +137,34 @@ class Merrdb
 
     /**
      * 执行SQL
+     *
      * @param $query
      * @param bool $fetchAll
+     *
+     * @throws \Exception
      * @return bool
      */
     public function query($query, $fetchAll = true)
     {
         $conn = $this->dispatchConnection()->connect();
-
         $this->saveQueryLog($query);
+        $ret = $conn->query($query);
+        $this->error = $conn->error()[2];
 
-        return $this->queryResultFormat($conn->query($query), $fetchAll);
+        if ($this->error != '')
+        {
+            throw new \Exception($this->error);
+        }
+
+        return $this->queryResultFormat($ret, $fetchAll);
     }
 
     /**
      * 格式化Query结果
+     *
      * @param \PDOStatement $result
      * @param  bool $fetchAll
+     *
      * @return bool
      */
     protected function queryResultFormat($result, $fetchAll = true)
@@ -153,22 +179,33 @@ class Merrdb
 
     /**
      * 执行SQL
+     *
      * @param $query
+     *
+     * @throws \Exception
      * @return int
      */
     public function exec($query)
     {
         $conn = $this->dispatchConnection()->connect();
-
         $this->saveQueryLog($query);
+        $ret = $conn->exec($query);
+        $this->error = $conn->error()[2];
 
-        return $conn->exec($query);
+        if ($this->error != '')
+        {
+            throw new \Exception($this->error);
+        }
+
+        return $ret;
     }
 
     /**
      * 获取主键记录
+     *
      * @param $id
      * @param string $columns
+     *
      * @return array|false
      */
     public function get($id, $columns = '*')
@@ -178,8 +215,10 @@ class Merrdb
 
     /**
      * 获取一条记录
+     *
      * @param array $conditions
      * @param string $columns
+     *
      * @return array|false
      */
     public function fetch(array $conditions, $columns = '*')
@@ -189,8 +228,10 @@ class Merrdb
 
     /**
      * 查询多行
+     *
      * @param array $conditions
      * @param string $columns
+     *
      * @return array|false
      */
     public function select(array $conditions = [], $columns = '*')
@@ -200,7 +241,9 @@ class Merrdb
 
     /**
      * 是否存在数据
+     *
      * @param array $conditions
+     *
      * @return bool
      */
     public function has(array $conditions)
@@ -210,7 +253,9 @@ class Merrdb
 
     /**
      * 查询总行数
+     *
      * @param array $conditions
+     *
      * @return int|mixed
      */
     public function count(array $conditions)
@@ -231,7 +276,9 @@ class Merrdb
 
     /**
      * 插入数据
+     *
      * @param array $data
+     *
      * @return int
      */
     public function insert(array $data)
@@ -247,8 +294,10 @@ class Merrdb
 
     /**
      * 更新数据
+     *
      * @param array $data
      * @param array $conditions
+     *
      * @return int
      */
     public function update(array $data, array $conditions)
@@ -258,7 +307,9 @@ class Merrdb
 
     /**
      * 删除数据
+     *
      * @param array $conditions
+     *
      * @return int
      */
     public function delete(array $conditions)
@@ -268,7 +319,9 @@ class Merrdb
 
     /**
      * 执行事务
+     *
      * @param \Closure $action
+     *
      * @return bool
      */
     public function action(\Closure $action)
@@ -293,9 +346,11 @@ class Merrdb
 
     /**
      * 获取完整的SQL
+     *
      * @param $columns
      * @param array $conditions
      * @param int $type
+     *
      * @return string
      */
     protected function getNormalSQL($columns, array $conditions = null, $type = Merrdb::QUERY_TYPE_SELECT)
@@ -317,7 +372,9 @@ class Merrdb
 
     /**
      * 获取插入和更新的SQL格式内容
+     *
      * @param array $columns
+     *
      * @return string
      */
     protected function getInsertUpdateKvData(array $columns)
@@ -325,7 +382,7 @@ class Merrdb
         $n = [];
         foreach ($columns as $column => $val)
         {
-            if(is_array($val))
+            if (is_array($val))
             {
                 $val = implode(',', $val);
             }
@@ -337,7 +394,9 @@ class Merrdb
 
     /**
      * Quote
+     *
      * @param $string
+     *
      * @return string
      */
     protected function quote($string)
@@ -347,7 +406,9 @@ class Merrdb
 
     /**
      * Quote column
+     *
      * @param $string
+     *
      * @return string
      */
     protected function quoteColumn($string)
@@ -357,7 +418,9 @@ class Merrdb
 
     /**
      * Quote array
+     *
      * @param array $values
+     *
      * @return array
      */
     protected function quoteArray(array $values)
@@ -373,7 +436,9 @@ class Merrdb
 
     /**
      * 条件解析
+     *
      * @param array $conditions
+     *
      * @return string
      */
     public function parseCondition(array $conditions)
@@ -486,18 +551,18 @@ class Merrdb
                     $existsOrderby = true;
                     break;
                 case 'GROUP':
-                    $w = " GROUP BY ".implode(',', $stack);
+                    $w = " GROUP BY " . implode(',', $stack);
                     break;
                 case 'LIMIT':
                     $w = " LIMIT {$stack[0]},{$stack[1]}";
                     break;
             }
 
-            if ($key == 'GROUP' && $existsOrderby == true) 
+            if ($key == 'GROUP' && $existsOrderby == true)
             {
                 continue;
             }
-            
+
             $query .= $w;
         }
 
@@ -506,8 +571,10 @@ class Merrdb
 
     /**
      * 表达式解析
+     *
      * @param $expression
      * @param $values
+     *
      * @return string
      * @throws \Exception
      */
@@ -583,7 +650,7 @@ class Merrdb
             {
                 $str = sprintf($str, implode(",", $values));
             }
-            elseif($split[1] == '~')
+            elseif ($split[1] == '~')
             {
 
             }
@@ -599,7 +666,7 @@ class Merrdb
             {
                 $str .= "{$this->quote($values)}";
             }
-            elseif($split[1] == '~')
+            elseif ($split[1] == '~')
             {
                 $values = "%{$values}%";
                 $str .= "{$this->quote($values)}";
@@ -666,7 +733,19 @@ class Merrdb
     }
 
     /**
+     *
+     * 获取错误
+     *
+     * @return mixed
+     */
+    public function getError()
+    {
+        return $this->error;
+    }
+
+    /**
      * 保存Query日志
+     *
      * @param $query
      */
     protected function saveQueryLog($query)
