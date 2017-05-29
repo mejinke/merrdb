@@ -474,7 +474,7 @@ class Merrdb
                     $parts = explode(',', $expression);
                     if (count($parts) == 2)
                     {
-                        foreach ($condition as $column => $value)
+                        foreach ($parts as $column => $value)
                         {
                             $conditionReal[trim($expression)][$column] = $value;
                         }
