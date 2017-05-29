@@ -443,7 +443,6 @@ class Merrdb
      */
     public function parseCondition(array $conditions)
     {
-
         if (empty($conditions))
         {
             return '';
@@ -472,18 +471,31 @@ class Merrdb
                     $conditionReal['LIMIT'] = is_array($condition) ? $condition : [intval($condition), intval($condition)];
                     break;
                 default:
-                    $conditionReal['AND'][$expression] = $condition;
+                    $parts = explode(',', $expression);
+                    if (count($parts) == 2)
+                    {
+                        foreach ($condition as $column => $value)
+                        {
+                            $conditionReal[trim($expression)][$column] = $value;
+                        }
+                    }
+                    else
+                    {
+                        $conditionReal['AND'][$expression] = $condition;
+                    }
             }
         }
 
-        $ws = ['AND' => [], 'OR' => [], 'ORDER' => [], 'GROUP' => [], 'LIMIT' => []];
+        $ws = ['AND' => [], 'AND,OR' => [], 'OR' => [], 'OR,AND' => [], 'ORDER' => [], 'GROUP' => [], 'LIMIT' => []];
 
         foreach ($conditionReal as $key => $conds)
         {
             switch ($key)
             {
                 case 'AND':
+                case 'AND,OR':
                 case 'OR':
+                case 'OR,AND':
                     foreach ($conds as $expression => $value)
                     {
                         $ws[$key][] = $this->parseExpression($expression, $value);
@@ -544,6 +556,16 @@ class Merrdb
                     if ($query != '')
                     {
                         $w = ' AND ' . $w;
+                    }
+                    break;
+                case 'AND,OR':
+                case 'OR,AND':
+                    $parts = explode(',', $key);
+                    $existsCondition = true;
+                    $w = '(' . implode(" {$parts[1]} ", $stack) . ')';
+                    if ($query != '')
+                    {
+                        $w = ' '.$parts[0].' ' . $w;
                     }
                     break;
                 case 'ORDER':
