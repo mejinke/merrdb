@@ -275,6 +275,19 @@ class Merrdb
     }
 
     /**
+     * 查询指定字段的总和
+     *
+     * @param array $conditions
+     *
+     * @return int
+     */
+    public function sum(array $conditions, $column)
+    {
+        $row = $this->fetch($conditions, 'SUM('.$column.') AS SumValue');
+        return $row == false ? 0 : intval($row['SumValue']);
+    }
+
+    /**
      * 插入数据
      *
      * @param array $data
@@ -472,7 +485,7 @@ class Merrdb
                     break;
                 default:
                     $parts = explode(',', $expression);
-                    if (count($parts) == 2)
+                    if (count($parts) == 2 && (in_array($parts[0], ['AND','OR'])))
                     {
                         foreach ($parts as $column => $value)
                         {
