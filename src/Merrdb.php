@@ -487,7 +487,7 @@ class Merrdb
                     $parts = explode(',', $expression);
                     if (count($parts) == 2 && (in_array($parts[0], ['AND','OR'])))
                     {
-                        foreach ($parts as $column => $value)
+                        foreach ($condition as $column => $value)
                         {
                             $conditionReal[trim($expression)][$column] = $value;
                         }
