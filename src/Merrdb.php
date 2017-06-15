@@ -153,7 +153,7 @@ class Merrdb
 
         if ($this->error != '')
         {
-            throw new \Exception($this->error);
+            throw new \Exception($this->error. ' SQL:'.$query);
         }
 
         return $this->queryResultFormat($ret, $fetchAll);
@@ -194,7 +194,7 @@ class Merrdb
 
         if ($this->error != '')
         {
-            throw new \Exception($this->error);
+            throw new \Exception($this->error. ' SQL:'.$query);
         }
 
         return $ret;
@@ -624,7 +624,7 @@ class Merrdb
 
         $ct = '';
 
-        switch ($split[1])
+        switch (strtolower($split[1]))
         {
             case '=':
                 $ct = '=';
@@ -663,6 +663,9 @@ class Merrdb
             case '~':
                 $ct = "LIKE ";
                 break;
+            case 'fin':
+                $ct = " FIND_IN_SET(%s, %s)";
+                break;
         }
 
         if ($ct == '')
@@ -671,6 +674,10 @@ class Merrdb
         }
 
         $str = "{$this->quoteColumn($split[0])} {$ct} ";
+        if (strtolower($split[1]) == 'fin')
+        {
+            $str = "{$ct} ";
+        }
 
         if (is_array($values))
         {
@@ -680,14 +687,13 @@ class Merrdb
             {
                 $str = sprintf($str, $values[0], isset($values[1]) ? $values[1] : $values[0]);
             }
-
+            elseif(strtolower($split[1]) == 'fin')
+            {
+                $str = sprintf($str, implode(",", $values), $split[0]);
+            }
             elseif (in_array($split[1], ['=', '!']))
             {
                 $str = sprintf($str, implode(",", $values));
-            }
-            elseif ($split[1] == '~')
-            {
-
             }
         }
         else
@@ -705,6 +711,10 @@ class Merrdb
             {
                 $values = "%{$values}%";
                 $str .= "{$this->quote($values)}";
+            }
+            elseif(strtolower($split[1]) == 'fin')
+            {
+                $str = sprintf($str, $this->quote($values), $split[0]);
             }
             else
             {
