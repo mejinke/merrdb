@@ -681,6 +681,7 @@ class Merrdb
 
         if (is_array($values))
         {
+            $valuesBk = $values;
             $values = $this->quoteArray($values);
 
             if (in_array($split[1], ['<>', '><']))
@@ -689,7 +690,7 @@ class Merrdb
             }
             elseif(strtolower($split[1]) == 'fin')
             {
-                $str = sprintf($str, implode(",", $values), $split[0]);
+                $str = sprintf($str, $this->quote(implode(",", $valuesBk)), $split[0]);
             }
             elseif (in_array($split[1], ['=', '!']))
             {
