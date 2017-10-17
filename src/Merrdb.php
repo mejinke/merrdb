@@ -485,7 +485,7 @@ class Merrdb
                     break;
                 default:
                     $parts = explode(',', $expression);
-                    if (count($parts) == 2 && (in_array($parts[0], ['AND','OR'])))
+                    if (in_array(count($parts), [2, 3]) && (in_array($parts[0], ['AND','OR'])))
                     {
                         foreach ($condition as $column => $value)
                         {
@@ -543,6 +543,16 @@ class Merrdb
                 case 'LIMIT':
                     $ws[$key] = $conds;
                     break;
+                default:
+                    //兼容 OR,AND,2 多个OR 或AND的查询
+                    $parts = explode(',', $key);
+                    if (count($parts) == 3 && (in_array($parts[0], ['AND','OR'])))
+                    {
+                        foreach ($conds as $expression => $value)
+                        {
+                            $ws[$key][] = $this->parseExpression($expression, $value);
+                        }
+                    }
             }
         }
 
@@ -591,6 +601,18 @@ class Merrdb
                 case 'LIMIT':
                     $w = " LIMIT {$stack[0]},{$stack[1]}";
                     break;
+                default:
+                    //兼容 OR,AND,2 多个OR 或AND的查询
+                    $parts = explode(',', $key);
+                    if (count($parts) == 3 && in_array($parts[0], ['OR', 'AND']))
+                    {
+                        $existsCondition = true;
+                        $w = '(' . implode(" {$parts[1]} ", $stack) . ')';
+                        if ($query != '')
+                        {
+                            $w = ' '.$parts[0].' ' . $w;
+                        }
+                    }
             }
 
             if ($key == 'GROUP' && $existsOrderby == true)
