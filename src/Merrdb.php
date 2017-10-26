@@ -279,12 +279,12 @@ class Merrdb
      *
      * @param array $conditions
      *
-     * @return int
+     * @return number
      */
     public function sum(array $conditions, $column)
     {
         $row = $this->fetch($conditions, 'SUM('.$column.') AS SumValue');
-        return $row == false ? 0 : intval($row['SumValue']);
+        return $row == false ? 0 : $row['SumValue'];
     }
 
     /**
