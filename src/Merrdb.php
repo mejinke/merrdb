@@ -284,7 +284,7 @@ class Merrdb
     public function sum(array $conditions, $column)
     {
         $row = $this->fetch($conditions, 'SUM('.$column.') AS SumValue');
-        return $row == false ? 0 : $row['SumValue'];
+        return $row == false || $row['SumValue'] == null ? 0 : $row['SumValue'];
     }
 
     /**
