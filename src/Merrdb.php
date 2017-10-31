@@ -52,6 +52,14 @@ class Merrdb
 
     /**
      *
+     * 是否开启了事务
+     *
+     * @var
+     */
+    private $openAction;
+
+    /**
+     *
      * 错误信息
      *
      * @var
@@ -342,9 +350,9 @@ class Merrdb
         $conn = $this->dispatchConnection()->connect();
 
         $conn->actionBegin();
-
+        $this->openAction = true;
         $result = $action($this);
-
+        $this->openAction = false;
         if ($result === false)
         {
             $conn->actionRollback();
@@ -798,6 +806,17 @@ class Merrdb
         $this->lastConnectId = $c->getId();
 
         return $c;
+    }
+
+    /**
+     *
+     * 是否开启了事务
+     *
+     * @return bool
+     */
+    public function isOpenAction()
+    {
+        return $this->openAction === true;
     }
 
     /**
