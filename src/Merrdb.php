@@ -618,7 +618,7 @@ class Merrdb
             throw new \Exception("'{$expression}' cannot parse");
         }
 
-        $str = "{$this->quoteColumn($parts[0])} {$ct}";
+        $str = "{$this->quoteColumn($parts[0])} {$ct} ";
         if (strtolower($parts[1]) == 'fin')
         {
             $str = "{$ct} ";
