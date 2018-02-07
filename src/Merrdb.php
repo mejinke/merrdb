@@ -52,14 +52,6 @@ class Merrdb
 
     /**
      *
-     * 是否开启了事务
-     *
-     * @var
-     */
-    private $openAction;
-
-    /**
-     *
      * 错误信息
      *
      * @var
@@ -338,30 +330,39 @@ class Merrdb
         return $this->exec($this->getNormalSQL(null, $conditions, Merrdb::QUERY_TYPE_DELETE));
     }
 
+
     /**
+     *
      * 执行事务
      *
      * @param \Closure $action
      *
-     * @return bool
+     * @return bool|mixed|null
+     * @throws \Exception
      */
     public function action(\Closure $action)
     {
         $conn = $this->dispatchConnection()->connect();
 
-        $conn->actionBegin();
-        $this->openAction = true;
-        $result = $action($this);
-        $this->openAction = false;
-        if ($result === false)
+        $result = null;
+
+        try
+        {
+            $conn->actionBegin();
+            $result = $action($this);
+            if ($result === false)
+            {
+                $conn->actionRollback();
+                return false;
+            }
+        }
+        catch (\Exception $e)
         {
             $conn->actionRollback();
-
-            return false;
+            throw $e;
         }
 
         $conn->actionCommit();
-
         return $result;
     }
 
@@ -376,19 +377,25 @@ class Merrdb
      */
     protected function getNormalSQL($columns, array $conditions = null, $type = Merrdb::QUERY_TYPE_SELECT)
     {
+        $sql = '';
+
         switch ($type)
         {
             case Merrdb::QUERY_TYPE_SELECT:
-                return "SELECT {$columns} FROM `{$this->table}` {$this->parseCondition($conditions)}";
+                $sql = "SELECT {$columns} FROM `{$this->table}` {$this->parseCondition($conditions)}";
+                break;
             case Merrdb::QUERY_TYPE_INSERT:
-                return "INSERT INTO `{$this->table}` SET {$this->getInsertUpdateKvData($columns)}";
+                $sql = "INSERT INTO `{$this->table}` SET {$this->getInsertUpdateKvData($columns)}";
+                break;
             case Merrdb::QUERY_TYPE_UPDATE:
-                return "UPDATE `{$this->table}` SET {$this->getInsertUpdateKvData($columns)} {$this->parseCondition($conditions)}";
+                $sql = "UPDATE `{$this->table}` SET {$this->getInsertUpdateKvData($columns)} {$this->parseCondition($conditions)}";
+                break;
             case Merrdb::QUERY_TYPE_DELETE:
-                return "DELETE FROM `{$this->table}` {$this->parseCondition($conditions)}";
+                $sql = "DELETE FROM `{$this->table}` {$this->parseCondition($conditions)}";
+                break;
         }
 
-        return '';
+        return $sql;
     }
 
     /**
@@ -464,175 +471,83 @@ class Merrdb
      */
     public function parseCondition(array $conditions)
     {
-        if (empty($conditions))
-        {
-            return '';
-        }
+        $w = 'WHERE '.$this->recuCondition($conditions);
 
-        $conditionReal = [];
-
-        foreach ($conditions as $expression => $condition)
+        //排序
+        if (isset($conditions['ORDER']))
         {
-            switch (trim($expression))
+            $w .= " ORDER BY ";
+            $value = $conditions['ORDER'];
+            if (gettype($value) != 'array')
             {
-                case 'AND':
-                case 'OR':
-                    foreach ($condition as $column => $value)
-                    {
-                        $conditionReal[trim($expression)][$column] = $value;
-                    }
-                    break;
-                case 'ORDER':
-                    $conditionReal['ORDER'] = $condition;
-                    break;
-                case 'GROUP':
-                    $conditionReal['GROUP'] = $condition;
-                    break;
-                case 'LIMIT':
-                    $conditionReal['LIMIT'] = is_array($condition) ? $condition : [intval($condition), intval($condition)];
-                    break;
-                default:
-                    $parts = explode(',', $expression);
-                    if (in_array(count($parts), [2, 3]) && (in_array($parts[0], ['AND','OR'])))
-                    {
-                        foreach ($condition as $column => $value)
-                        {
-                            $conditionReal[trim($expression)][$column] = $value;
-                        }
-                    }
-                    else
-                    {
-                        $conditionReal['AND'][$expression] = $condition;
-                    }
+                $w .= $value;
+            }
+            else
+            {
+                $stock = [];
+                foreach ($value as $k => $v)
+                {
+                    $stock[] = $this->quoteColumn($k).' '.$v;
+                }
+                $w .= join(',', $stock);
             }
         }
 
-        $ws = ['AND' => [], 'AND,OR' => [], 'OR' => [], 'OR,AND' => [], 'ORDER' => [], 'GROUP' => [], 'LIMIT' => []];
-
-        foreach ($conditionReal as $key => $conds)
+        //分组
+        if (isset($conditions['GROUP']) && !isset($conditions['ORDER']))
         {
-            switch ($key)
+            $w .= " GROUP BY ".$conditions['GROUP'];
+        }
+
+        //获取指定条数
+        if (isset($conditions['LIMIT']))
+        {
+            $value = $conditions['LIMIT'];
+            if (gettype($value) != 'array')
             {
-                case 'AND':
-                case 'AND,OR':
-                case 'OR':
-                case 'OR,AND':
-                    foreach ($conds as $expression => $value)
-                    {
-                        $ws[$key][] = $this->parseExpression($expression, $value);
-                    }
-                    break;
-                case 'ORDER':
-                    if (is_array($conds))
-                    {
-                        foreach ($conds as $column => $v)
-                        {
-                            $ws[$key][] = "{$this->quoteColumn($column)} $v";
-                        }
-                    }
-                    else
-                    {
-                        $ws[$key][] = "{$conds}";
-                    }
-                    break;
-                case 'GROUP':
-                    if (is_array($conds))
-                    {
-                        foreach ($conds as $column)
-                        {
-                            $ws[$key][] = "{$this->quoteColumn($column)}";
-                        }
-                    }
-                    else
-                    {
-                        $ws[$key][] = "{$conds}";
-                    }
-                    break;
-                case 'LIMIT':
-                    $ws[$key] = $conds;
-                    break;
-                default:
-                    //兼容 OR,AND,2 多个OR 或AND的查询
-                    $parts = explode(',', $key);
-                    if (count($parts) == 3 && (in_array($parts[0], ['AND','OR'])))
-                    {
-                        foreach ($conds as $expression => $value)
-                        {
-                            $ws[$key][] = $this->parseExpression($expression, $value);
-                        }
-                    }
+                $w .= ' LIMIT '.intval($value).','.intval($value);
+            }
+            else
+            {
+                $w .= ' LIMIT '.intval($value[0]).','.intval($value[1]);
             }
         }
 
-        $query = '';
-
-        //是否存在条件
-        $existsCondition = false;
-        $existsOrderby = false;
-        foreach ($ws as $key => $stack)
-        {
-            if (empty($stack))
-            {
-                continue;
-            }
-
-            $w = '';
-
-            switch ($key)
-            {
-                case 'AND':
-                case 'OR':
-                    $existsCondition = true;
-                    $w = '(' . implode(" {$key} ", $stack) . ')';
-                    if ($query != '')
-                    {
-                        $w = ' AND ' . $w;
-                    }
-                    break;
-                case 'AND,OR':
-                case 'OR,AND':
-                    $parts = explode(',', $key);
-                    $existsCondition = true;
-                    $w = '(' . implode(" {$parts[1]} ", $stack) . ')';
-                    if ($query != '')
-                    {
-                        $w = ' '.$parts[0].' ' . $w;
-                    }
-                    break;
-                case 'ORDER':
-                    $w = " ORDER BY " . implode(',', $stack);
-                    $existsOrderby = true;
-                    break;
-                case 'GROUP':
-                    $w = " GROUP BY " . implode(',', $stack);
-                    break;
-                case 'LIMIT':
-                    $w = " LIMIT {$stack[0]},{$stack[1]}";
-                    break;
-                default:
-                    //兼容 OR,AND,2 多个OR 或AND的查询
-                    $parts = explode(',', $key);
-                    if (count($parts) == 3 && in_array($parts[0], ['OR', 'AND']))
-                    {
-                        $existsCondition = true;
-                        $w = '(' . implode(" {$parts[1]} ", $stack) . ')';
-                        if ($query != '')
-                        {
-                            $w = ' '.$parts[0].' ' . $w;
-                        }
-                    }
-            }
-
-            if ($key == 'GROUP' && $existsOrderby == true)
-            {
-                continue;
-            }
-
-            $query .= $w;
-        }
-
-        return $existsCondition ? "WHERE {$query}" : $query;
+        return $w;
     }
+
+    /**
+     *
+     * 递归分析查询条件
+     *
+     * @param array $conditions
+     * @param string $conjunctor
+     *
+     * @return string
+     */
+    public function recuCondition(array $conditions, $conjunctor = 'AND')
+    {
+        $stack = [];
+        foreach ($conditions as $condition => $values)
+        {
+            preg_match('/^(AND|OR)(\s+#.*)?$/', $condition, $mapping);
+            if (isset($mapping[1]))
+            {
+                if (gettype($values) == 'array')
+                {
+                    $stack[] = '('.$this->recuCondition($values, $mapping[1]).')';
+                }
+                continue;
+            }
+
+            if (!in_array($condition, ['ORDER', 'GROUP', 'LIMIT']))
+            {
+                $stack[] = $this->parseExpression($condition, $values);
+            }
+        }
+        return implode($stack, " {$conjunctor} ");
+    }
+
 
     /**
      * 表达式解析
@@ -645,16 +560,16 @@ class Merrdb
      */
     public function parseExpression($expression, $values)
     {
-        $split = explode(',', $expression);
+        $parts = explode(',', $expression);
 
-        if (count($split) == 1)
+        if (count($parts) == 1)
         {
-            $split[1] = '=';
+            $parts[1] = '=';
         }
 
         $ct = '';
 
-        switch (strtolower($split[1]))
+        switch (strtolower($parts[1]))
         {
             case '=':
                 $ct = '=';
@@ -671,7 +586,7 @@ class Merrdb
             case '>=':
             case '<':
             case '<=':
-                $ct = $split[1];
+                $ct = $parts[1];
                 break;
             case '!':
                 $ct = '!=';
@@ -703,8 +618,8 @@ class Merrdb
             throw new \Exception("'{$expression}' cannot parse");
         }
 
-        $str = "{$this->quoteColumn($split[0])} {$ct} ";
-        if (strtolower($split[1]) == 'fin')
+        $str = "{$this->quoteColumn($parts[0])} {$ct}";
+        if (strtolower($parts[1]) == 'fin')
         {
             $str = "{$ct} ";
         }
@@ -714,38 +629,38 @@ class Merrdb
             $valuesBk = $values;
             $values = $this->quoteArray($values);
 
-            if (in_array($split[1], ['<>', '><']))
+            if (in_array($parts[1], ['<>', '><']))
             {
                 $str = sprintf($str, $values[0], isset($values[1]) ? $values[1] : $values[0]);
             }
-            elseif(strtolower($split[1]) == 'fin')
+            elseif(strtolower($parts[1]) == 'fin')
             {
-                $str = sprintf($str, $this->quote(implode(",", $valuesBk)), $split[0]);
+                $str = sprintf($str, $this->quote(implode(",", $valuesBk)), $parts[0]);
             }
-            elseif (in_array($split[1], ['=', '!']))
+            elseif (in_array($parts[1], ['=', '!']))
             {
                 $str = sprintf($str, implode(",", $values));
             }
         }
         else
         {
-            if (in_array($split[1], ['<>', '><']))
+            if (in_array($parts[1], ['<>', '><']))
             {
                 $str = sprintf($str, $this->quote($values), $this->quote($values));
             }
 
-            elseif (in_array($split[1], ['=', '!']))
+            elseif (in_array($parts[1], ['=', '!']))
             {
                 $str .= "{$this->quote($values)}";
             }
-            elseif ($split[1] == '~')
+            elseif ($parts[1] == '~')
             {
                 $values = "%{$values}%";
                 $str .= "{$this->quote($values)}";
             }
-            elseif(strtolower($split[1]) == 'fin')
+            elseif(strtolower($parts[1]) == 'fin')
             {
-                $str = sprintf($str, $this->quote($values), $split[0]);
+                $str = sprintf($str, $this->quote($values), $parts[0]);
             }
             else
             {
@@ -806,17 +721,6 @@ class Merrdb
         $this->lastConnectId = $c->getId();
 
         return $c;
-    }
-
-    /**
-     *
-     * 是否开启了事务
-     *
-     * @return bool
-     */
-    public function isOpenAction()
-    {
-        return $this->openAction === true;
     }
 
     /**
